@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>D3: Smoother highlight transitions</title>
+		<script type="text/javascript" src="d3.v3.js"></script>
+        
+        <!-- Latest compiled and minified CSS -->
+        <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+
+        <!-- jQuery library -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+
+        <!-- Latest compiled JavaScript -->
+        <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+        
+		<style type="text/css">
+			/* No style rules here yet */		
+		</style>
+	</head>
+	<body class="container">
+        <h2>Cycle through variables</h2>
+        <div class="row" style="padding-bottom: 10px; padding-left: 10px;">
+            <input type="button" class="col-xs-2 btn btn-default" onclick="globals.plotAge()" value="Age">
+            <input type="button" class="col-xs-2 btn btn-default" onclick="globals.plotFare()" value="Fare">
+            <input type="button" class="col-xs-2 btn btn-default" onclick="globals.plotSurvived()" value="Survived">
+        </div>
+        <script type="text/javascript">
+
+			//Width and height
+			var w = 600;
+			var h = 250;
+            padding = 100;
+			
+			
+            var globals ={}
+            //read data from file
+            d3.csv("titanic.csv", function(error, data) {
+                data.forEach(function(d) {
+                    d.PassengerId = +d.PassengerId;
+                    d.Survived = +d.Survived;
+                    d.Pclass = +d.Pclass;
+                    d.Sex = d.Sex;
+                    d.Age = +d.Age;
+                    d.Fare = +d.Fare;
+                    d.Embarked = d.Embarked;
+                });
+                   
+                
+                var NUMBER_OF_BUCKETS = 20;
+
+                //creates Histogram for given data
+                function createHistogram(data, noOfBuckets){
+                    tScale = d3.scale.linear()
+                                .domain([0,noOfBuckets])
+                                .range([d3.min(data), d3.max(data)]);
+                    bounds = d3.range(noOfBuckets + 1)
+                                .map(tScale)
+                                .map(function(d){
+                                        return Math.round(d)
+                                    });
+                    var histogram = d3.layout.histogram()
+                    .bins(bounds)
+                    (data);
+                    return histogram.map(function(d){return d.length});
+                }
+
+                //TODO: histogram for categorical data
+
+
+                //Creates SVG element with given width and height
+                function createSvgElement(w, h){
+                    return d3.select("body")
+                            .append("svg")
+                            .attr("width", w)
+                            .attr("height", h);
+                }
+
+                //Create bars
+                function createBarChart(svg, dataset, noOfBuckets){
+
+                    var xScale = d3.scale.ordinal()
+                                    .domain(d3.range(noOfBuckets))
+                                    .rangeRoundBands([0, w], 0.05);
+
+                    var yScale = d3.scale.linear()
+                                    .domain([0, d3.max(dataset)])
+                                    .range([0, h]);
+                    
+                    svg.selectAll("rect")
+                    .data(dataset)
+                    .enter()
+                    .append("rect")
+                    .attr("x", function(d, i){
+                        return xScale(i);
+                    })
+                    .attr("y", function(d){
+                        return h - yScale(d);
+                    })
+                    .attr("width", xScale.rangeBand())
+                    .attr("height", function(d){
+                        return yScale(d);
+                    })
+                    .attr("fill", "teal")
+                    //.attr("fill", function(d){
+                      //  .attr("background-color", "teal")
+                        //return "rgb(0, 0, " + (d * 10) + ")";
+                    //})
+                    .on("mouseover", function() {
+                        d3.select(this)
+                            .attr("fill", "orange");
+                    })
+                    .on("mouseout", function(d) {
+                       d3.select(this)
+                            .transition()
+                            .duration(250)
+                            .attr("fill", "teal")
+                            //.attr("fill", "rgb(0, 0, " + (d * 10) + ")");
+                    });
+                    
+                    //Create Axis
+                    /*svg.append("g")
+                        .attr("class", "x axis")
+                        .attr("transform", "translate(0," + h + ")")
+                        .call(xAxis);
+                        */
+
+                    //Create labels
+                    svg.selectAll("text")
+                       .data(dataset)
+                       .enter()
+                       .append("text")
+                       .text(function(d) {
+                            return d;
+                       })
+                       .attr("text-anchor", "middle")
+                       .attr("x", function(d, i) {
+                            return xScale(i) + xScale.rangeBand() / 2;
+                       })
+                       .attr("y", function(d) {
+                            return h - yScale(d) + 14;
+                       })
+                        .attr("index", function(d, i){
+                            return i;
+                        })
+                       .attr("font-family", "sans-serif")
+                       .attr("font-size", "11px")
+                       .attr("fill", "white");
+                }
+
+                var svg = createSvgElement(w, h);
+
+                function updateChart(data){
+                     //Update all rects
+                     svg.selectAll("rect")
+                     .data(data)
+                     .attr("y", function(d) {
+                     return h - yScale(d);
+                     })
+                     .attr("height", function(d) {
+                     return yScale(d);
+                     });
+                }
+
+                globals.plotAge = function(){
+                    $("svg").remove();
+                    ageData = data.map(function(d){
+                                        return d.Age;
+                                    });
+                    createBarChart(createSvgElement(w,h), createHistogram(ageData, NUMBER_OF_BUCKETS), NUMBER_OF_BUCKETS)
+                };
+                globals.plotFare = function (){
+                   $("svg").remove();
+                    fareData = data.map(function(d){
+                        return d.Fare;
+                    });
+                    createBarChart(createSvgElement(w,h), createHistogram(fareData, NUMBER_OF_BUCKETS), NUMBER_OF_BUCKETS);
+                };
+                globals.plotSurvived = function (){
+                    $("svg").remove();
+                    survived = data.map(function(d){
+                        return d.Survived;
+                    });
+                    createBarChart(createSvgElement(w,h), createHistogram(survived, 2), 2)
+                },
+                globals.plotGender = function (){
+                    $("svg").remove();
+                    gender = data.map(function(d){
+                        return d.Sex;
+                    })
+                    createBarChart(createSvgElement(w,h), createHistogram(gender, 2), 2)
+                }
+                
+                globals.plotAge();
+            });
+                
+			
+		</script>
+	</body>
+</html>
